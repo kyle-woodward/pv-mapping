@@ -1,0 +1,15 @@
+experiment_name: train-pv-cnn-1 # basename, abs path to checkpoint model file will use output_dir and HPARAMS
+output_dir: gs://pv_mapping/models # GCS location to save model checkpoints and logs
+seed: 5
+
+# data-related
+epochs: 10
+batch_size: 32
+buffer_size: 320
+
+# model-related
+# loss_function: binary_crossentropy
+
+# training related
+early_stopping_patience: null # null or int
+

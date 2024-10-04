@@ -5,6 +5,24 @@ from functools import partial
 from tensorflow.keras.metrics import categorical_accuracy
 from tensorflow.keras import backend as backend
 from tensorflow import keras
+import argparse
+import yaml
+import logging
+import datetime
+import os
+
+# setup logging
+logging.basicConfig(
+    format="%(asctime)s %(message)s",
+    datefmt="%Y-%m-%d %I:%M:%S %p",
+    level=logging.WARNING,
+    filename=os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        f'trainlog_{datetime.datetime.now().strftime("%Y-%m-%d")}.log',
+    ),  # add _%H-%M-%S if needbe
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Setup GCP Variables
 # PROJECT = 'YOUR-CLOUD-PROJECT'
@@ -284,8 +302,50 @@ custom_objects_dict = {
 
 if __name__ == '__main__':
 
-    LOGS_DIR = 'logs'  # This will be a local path within the Colab environment.
-    callbacks = [tf.keras.callbacks.TensorBoard(log_dir=LOGS_DIR, histogram_freq=1)]
+    # initalize new cli parser
+    parser = argparse.ArgumentParser(description="Train a model with a .yml file.")
+
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        help="path to .yml file",
+    )
+    args = parser.parse_args()
+
+    config_file = args.config
+
+    with open(config_file, "r") as file:
+        config_data = yaml.safe_load(file)
+
+    # retrieve config parameters
+    EXPERIMENT_NAME = config_data["experiment_name"]
+    OUTPUT_DIR = config_data["output_dir"]
+    SEED = config_data["seed"]
+    EPOCHS = config_data["epochs"]
+    BATCH_SIZE = config_data["batch_size"]
+    BUFFER_SIZE = config_data["buffer_size"]
+    # LOSS_FN = config_data["loss_function"]
+    EARLY_STOPPING_PATIENCE = config_data["early_stopping_patience"]
+    
+    os.makedirs(os.path.join(OUTPUT_DIR,EXPERIMENT_NAME), exist_ok=True)
+    # LOGS_DIR = 'logs'  # This will be a local path within the Colab environment.
+    
+    # setup model.fit() callbacks
+    file_suffix = f"epochs_{EPOCHS}_batchSize_{BATCH_SIZE}_bufferSize_{BUFFER_SIZE}"#+ # add your name or a unique string to identify your model file
+    model_file_path = os.path.join(OUTPUT_DIR,file_suffix+"_bestmodel.keras")
+    save_model_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=model_file_path,
+        monitor="val_loss",
+        verbose=0,
+        save_best_only=True,
+        # save_weights_only=True,
+        mode="auto",
+        save_freq="epoch",
+    )
+    tb_callback = tf.keras.callbacks.TensorBoard(log_dir=LOGS_DIR, histogram_freq=1)
+
+    callbacks = [tb_callback,save_model_callback]
 
     # Prepare datasets
     training = get_training_dataset(TRAINING_PATTERN)
